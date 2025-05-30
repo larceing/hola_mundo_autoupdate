@@ -1,48 +1,44 @@
-import requests, zipfile, os, sys, subprocess
+import os, sys, time, zipfile, requests, subprocess
 from pathlib import Path
 
-GITHUB_ZIP_URL = "https://github.com/TU_USUARIO/TU_REPO/releases/latest/download/hola_mundo.zip"
-GITHUB_VERSION_URL = "https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/version.txt"
+GITHUB_ZIP_URL = "https://github.com/larceing/hola_mundo_autoupdate/releases/latest/download/hola_mundo.zip"
+APP_DIR = Path(os.getenv("PROGRAMFILES")) / "HolaMundo"
+ZIP_PATH = APP_DIR / "update.zip"
+LOG_PATH = APP_DIR / "update.log"
 
-APP_DIR = Path(sys.argv[0]).parent
-LOCAL_VERSION_PATH = APP_DIR / "version.txt"
+def log(msg):
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(msg + "\n")
 
-def get_local_version():
-    if not LOCAL_VERSION_PATH.exists():
-        return "0.0.0"
-    return LOCAL_VERSION_PATH.read_text().strip()
-
-def get_remote_version():
+def descargar_zip():
     try:
-        return requests.get(GITHUB_VERSION_URL, timeout=5).text.strip()
-    except:
-        return None
+        with requests.get(GITHUB_ZIP_URL, stream=True) as r:
+            with open(ZIP_PATH, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+        log("Descarga completada.")
+    except Exception as e:
+        log(f"ERROR durante descarga: {e}")
 
-def check_for_update_and_run():
-    local = get_local_version()
-    remote = get_remote_version()
-    if not remote:
-        print("No se pudo comprobar la versión.")
-        return
+def reemplazar_archivos():
+    time.sleep(2)  # da tiempo a que se cierre main.exe
+    try:
+        with zipfile.ZipFile(ZIP_PATH, 'r') as zip_ref:
+            zip_ref.extractall(APP_DIR)
+        os.remove(ZIP_PATH)
+        log("Archivos reemplazados correctamente.")
+    except Exception as e:
+        log(f"ERROR al descomprimir: {e}")
 
-    if local != remote:
-        print(f"Actualización disponible: {remote}")
-        download_and_update()
-    else:
-        print("Todo actualizado.")
-
-def download_and_update():
-    zip_path = APP_DIR / "update.zip"
-    with requests.get(GITHUB_ZIP_URL, stream=True) as r:
-        with open(zip_path, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        zip_ref.extractall(APP_DIR)
-    os.remove(zip_path)
-
-    # Relanzar
-    subprocess.Popen([sys.executable, os.path.basename(sys.argv[0])])
+def relanzar():
+    try:
+        subprocess.Popen([str(APP_DIR / "main.exe")])
+        log("main.exe relanzado.")
+    except Exception as e:
+        log(f"ERROR al relanzar: {e}")
     sys.exit()
 
+if __name__ == "__main__":
+    descargar_zip()
+    reemplazar_archivos()
+    relanzar()
