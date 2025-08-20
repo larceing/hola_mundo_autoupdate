@@ -1,5 +1,4 @@
 # Hola Mundo AutoUpdate
-# Hola Mundo AutoUpdate 🚀
 
 Este proyecto es un ejemplo sencillo de un programa en **Python** que se actualiza automáticamente a su última versión disponible en GitHub.  
 
